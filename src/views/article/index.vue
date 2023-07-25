@@ -89,6 +89,16 @@
             ref="article-content"
             ></div>
             <van-divider>正文结束</van-divider>
+
+            <!-- 文章评论列表 -->
+            <comment-list 
+            :source="article.art_id"
+            :list="commentList"
+            @onload-success="totalCommentCount = $event.total_count"
+            @reply-click="onReplyClick"
+            />
+            <!-- 文章评论列表 -->
+
             <!-- 底部区域 -->
             <div class="article-bottom">
               <van-button
@@ -96,10 +106,11 @@
                 type="default"
                 round
                 size="small"
+                @click="isPostShow=true"
               >写评论</van-button>
               <van-icon
                 name="comment-o"
-                info="123"
+                :info="totalCommentCount"
                 color="#777"
               />
               <collect-article 
@@ -123,6 +134,18 @@
               <van-icon name="share" color="#777777"></van-icon>
             </div>
             <!-- /底部区域 -->
+
+            <!-- 弹出层 -->
+            <van-popup 
+            v-model="isPostShow" 
+            position="bottom" 
+            >
+            <comment-post 
+            :target="article.art_id"
+            @post-success="onPostSuccess"
+            />
+            </van-popup>
+
           </div>
         <!-- /加载完成-文章详情 -->
   
@@ -144,6 +167,22 @@
         </div>
         <!-- /加载失败：其它未知错误（例如网络原因或服务端异常） -->
       </div>
+
+      <!-- 评论回复 -->
+      <!-- 弹出层默认懒加载，导致每次开打的不同评论的回复一样 -->
+      <!-- v-if="isPostShow" 解决懒加载问题，每次关闭销毁组件 -->
+      <van-popup 
+        v-model="isReplyShow" 
+        position="bottom" 
+        style="height:100%"
+        >
+        <comment-reply 
+        v-if="isReplyShow"
+        :comment="currentComment"
+        @close="isReplyShow = false"
+        />
+      </van-popup>
+
     </div>
   </template>
   
@@ -153,13 +192,24 @@ import FollowUser from '@/components/follow-user'
 import { ImagePreview } from 'vant'
 import CollectArticle from '@/components/collect-article'
 import LikeArticle from '@/components/like-article'
+import CommentList from './components/comment-list.vue'
+import CommentPost from './components/comment-post.vue'
+import CommentReply from './components/comment-reply.vue'
 
   export default {
     name: 'ArticleIndex',
     components: {
       FollowUser ,
       CollectArticle,
-      LikeArticle
+      LikeArticle,
+      CommentList, 
+      CommentPost,
+      CommentReply
+    },
+    provide: function () {
+      return {
+        articleId: this.articleId
+      }
     },
     props: {
       articleId: {
@@ -172,7 +222,12 @@ import LikeArticle from '@/components/like-article'
         article: {}, // 文章详情
         loading: true, // 加载中的loading
         errStatus:0,   // 控制失败状态码
-        followLoading:false
+        followLoading:false,
+        totalCommentCount:0,
+        isPostShow:false, //发布评论状态
+        commentList:[],
+        isReplyShow: false,
+        currentComment:{}
       }
     },
     computed: {},
@@ -220,6 +275,19 @@ import LikeArticle from '@/components/like-article'
             }
           })
         },
+
+        onPostSuccess (data) {
+          // 关闭弹层
+          this.isPostShow = false
+          // 将发布内容显示到列表顶部
+          this.commentList.unshift(data.new_obj)
+          this.commentList.total_count++
+        },
+
+        onReplyClick (comment) {
+          this.currentComment = comment
+          this.isReplyShow = true
+        }
     }
   }
   </script>
